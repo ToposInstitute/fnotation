@@ -4,14 +4,14 @@ F-expressions are a new [lower house](https://parentheticallyspeaking.org/articl
 
 ## Principles
 
-1. Juxtaposition is function application (`f x y`)
-1. Custom infix operations with precedence given by user-specified precedence table
+1. Juxtaposition is application (`f x y`). Note that `f[x,y]` is also valid syntax (it is the application of `f` to the tuple expression `[x,y]`), so language designers may use this syntax for function calls if desired.
+1. Custom infix operations with precedence given by user-specified precedence table.
 1. Parentheses are *only* for the purpose of clarifying precedence, so specifically parentheses are always idempotent
 1. Built-in support for sum and product type syntax:
 
     - Product type with field names: `{ a = 2; b = "hello"; }`. This is also the block/let syntax, because `{ a = 2; a + a }` is sugar for `{ a = 2; ret = a + a; }.ret` (where `ret` is a fresh name)
     - Product type without field names: `[2, "hello"]`. We don't use parentheses for tuples because that would violate the rule that parentheses are only for clarifying precedence
-    - Field access: `x .a`. Note that fields are first-class syntax objects, `x.a` parses as the application of `x` to `.a`. This makes sense because we think of a record `{ a = 1; b = 2; }` as something like a function out of the set `{ .a, .b }` (note that `{ .a, .b }` is not a valid f-expr).
+    - Field access: `x .a`. Note that fields are first-class syntax objects, `x.a` parses as the application of `x` to `.a`. This makes sense because we think of a record `{ a = 1; b = 2; }` as something like a function out of the set `{ .a, .b }` (note that `{ .a, .b }` is not a valid f-expr because expressions in curly braces must be separated by semicolons).
     - Construction of elements of a sum type: `'left 3`. The use of `'` for sum type tags is inspired by the lisp tradition of `'x` for symbols, but also because `'` is "typographically dual" to `.`.
 
 1. Support a no keywords style via:
