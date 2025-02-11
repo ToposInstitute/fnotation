@@ -1,0 +1,20 @@
+[package]
+name = "fexplib"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+keywords = ["compilers", "errors", "logging"]
+categories = ["compilers"]
+description = "A simple lower-house syntax for programming language experimentation"
+repository = "https://github.com/ToposInstitute/fexplib.git"
+homepage = "https://github.com/ToposInstitute/fexplib"
+readme = "README.md"
+
+[dependencies]
+ansi_term = "0.12.1"
+bumpalo = { version = "3.17.0", features = ["collections"] }
+pretty = "0.12.3"
+tattle = "0.1.0"
+
+[dev-dependencies]
+expect-test = "1.5.1"
