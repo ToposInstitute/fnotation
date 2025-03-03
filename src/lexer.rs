@@ -88,8 +88,12 @@ macro_rules! error {
     }};
 }
 
+fn word(l: &mut Lexer) {
+    l.many(|c| c.is_alphanumeric() || c == '_');
+}
+
 fn keyword(l: &mut Lexer, kind: Kind) {
-    l.many(|c| c.is_alphanumeric());
+    word(l);
     l.emit(kind);
 }
 
@@ -122,7 +126,7 @@ fn run(l: &mut Lexer) {
                 continue;
             }
             _ if c.is_alphabetic() => {
-                l.many(|c| c.is_alphanumeric());
+                word(l);
                 l.emit(VAR);
             }
             _ if c.is_digit(10) => int(l),
@@ -140,7 +144,6 @@ fn run(l: &mut Lexer) {
             ')' => l.emit(RPAREN),
             '[' => l.emit(LBRACK),
             ']' => l.emit(RBRACK),
-            '_' => l.emit(UNDERSCORE),
             _ => {
                 error!(l, "unexpected character");
             }

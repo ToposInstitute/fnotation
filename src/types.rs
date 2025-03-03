@@ -40,8 +40,6 @@ pub enum FExp0<'a> {
 
     /// `a => Var("a")`
     Var(&'a str),
-    /// `_ => Underscore`
-    Underscore,
     /// `= => Keyword("=")`
     Keyword(&'a str),
 
@@ -124,7 +122,6 @@ impl<'a> FExp<'a> {
             Tuple(args) => bexpr(args),
             Int(i) => RcDoc::text(format!("{}", i)),
             Str(s) => RcDoc::text(format!("\"{}\"", s)),
-            Underscore => RcDoc::text("_"),
             Var(s) => RcDoc::text(s.to_string()),
             Keyword(s) => RcDoc::text(s.to_string()),
             Block(stmts, res) => RcDoc::text("{")

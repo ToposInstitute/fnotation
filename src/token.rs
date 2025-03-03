@@ -26,7 +26,6 @@ pub enum Kind {
     RBRACK,
     COMMA,
     SEMICOLON,
-    UNDERSCORE,
 }
 
 pub use Kind::*;
