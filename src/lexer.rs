@@ -125,7 +125,7 @@ fn run(l: &mut Lexer) {
                 l.preceding_whitespace = true;
                 continue;
             }
-            _ if c.is_alphabetic() => {
+            _ if c.is_alphabetic() || c == '_' => {
                 word(l);
                 l.emit(VAR);
             }
