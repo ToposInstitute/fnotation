@@ -97,12 +97,12 @@ fn keyword(l: &mut Lexer, kind: Kind) {
     l.emit(kind);
 }
 
-fn op(l: &mut Lexer) {
+fn op(l: &mut Lexer, as_var: bool) {
     l.many(|c| OPERATOR_CHARS.contains(&c));
     if l.keywords.contains(&l.slice()) {
-        l.emit(KEYWORD_OP);
+        l.emit(if as_var { KEYWORD } else { KEYWORD_OP });
     } else {
-        l.emit(OP);
+        l.emit(if as_var { VAR } else { OP });
     }
 }
 
@@ -130,7 +130,18 @@ fn run(l: &mut Lexer) {
                 l.emit(VAR);
             }
             _ if c.is_digit(10) => int(l),
-            _ if OPERATOR_CHARS.contains(&c) => op(l),
+            _ if OPERATOR_CHARS.contains(&c) => op(l, false),
+            '#' => {
+                while let Some(c) = l.advance() {
+                    if c == '\n' {
+                        break;
+                    }
+                }
+            }
+            '`' => {
+                l.skip();
+                op(l, true)
+            }
             '@' => keyword(l, PRIM),
             '%' => keyword(l, SPECIAL),
             '.' => keyword(l, FIELD),
