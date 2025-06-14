@@ -3,7 +3,7 @@ use std::fmt;
 use bumpalo::collections::Vec;
 use tattle::Loc;
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Debug)]
 pub enum FExp<'a> {
     L(Loc, FExp0<'a>),
 }
@@ -30,7 +30,7 @@ pub enum IsInfix {
     No,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Debug)]
 pub enum FExp0<'a> {
     /// `f x => App(f, x)`
     App1(&'a FExp<'a>, &'a FExp<'a>),
@@ -52,6 +52,8 @@ pub enum FExp0<'a> {
 
     /// `3 => Int(3)`
     Int(u64),
+    /// `3.0 => Float(3.0)`
+    Float(f64),
     /// "hello world" => Str("hello world")
     Str(&'a str),
 
@@ -73,7 +75,7 @@ pub use FExp0::*;
 
 use pretty::RcDoc;
 
-fn bexpr<'a>(args: &'a [&'a FExp<'a>]) -> RcDoc {
+fn bexpr<'a>(args: &'a [&'a FExp<'a>]) -> RcDoc<'a> {
     RcDoc::text("[")
         .append(
             RcDoc::intersperse(
@@ -121,6 +123,7 @@ impl<'a> FExp<'a> {
             Field(name) => RcDoc::text(format!(".{}", name)),
             Tuple(args) => bexpr(args),
             Int(i) => RcDoc::text(format!("{}", i)),
+            Float(x) => RcDoc::text(format!("{}", x)),
             Str(s) => RcDoc::text(format!("\"{}\"", s)),
             Var(s) => RcDoc::text(s.to_string()),
             Keyword(s) => RcDoc::text(s.to_string()),

@@ -106,9 +106,15 @@ fn op(l: &mut Lexer, as_var: bool) {
     }
 }
 
-fn int(l: &mut Lexer) {
+fn num(l: &mut Lexer) {
     l.many(|c| c.is_digit(10));
-    l.emit(INT);
+    if l.peek() == Some('.') {
+        l.advance();
+        l.many(|c| c.is_digit(10));
+        l.emit(FLOAT);
+    } else {
+        l.emit(INT);
+    }
 }
 
 fn string(l: &mut Lexer) {
@@ -129,7 +135,7 @@ fn run(l: &mut Lexer) {
                 word(l);
                 l.emit(VAR);
             }
-            _ if c.is_digit(10) => int(l),
+            _ if c.is_digit(10) => num(l),
             _ if OPERATOR_CHARS.contains(&c) => op(l, false),
             '#' => {
                 while let Some(c) = l.advance() {

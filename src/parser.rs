@@ -248,7 +248,7 @@ impl PartialOrd for Prec {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct BinOp<'a> {
     pub expr: &'a FExp<'a>,
     pub prec: Prec,

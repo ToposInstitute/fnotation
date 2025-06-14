@@ -16,6 +16,7 @@ pub enum Kind {
     TAG,
 
     INT,
+    FLOAT,
     STRING,
 
     LPAREN,

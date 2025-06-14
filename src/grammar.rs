@@ -16,7 +16,7 @@ macro_rules! error {
 }
 
 const ARG_START: &'static [token::Kind] = &[
-    VAR, KEYWORD, INT, LPAREN, LBRACK, LCURLY, STRING, PRIM, SPECIAL, TAG, FIELD,
+    VAR, KEYWORD, INT, FLOAT, LPAREN, LBRACK, LCURLY, STRING, PRIM, SPECIAL, TAG, FIELD,
 ];
 
 type P<'a> = Parser<'a>;
@@ -70,6 +70,7 @@ fn arg<'a>(p: &P<'a>, following: bool) -> PResult<'a> {
         VAR => Ok(p.advance_close(m, Var(p.slice()))),
         KEYWORD => Ok(p.advance_close(m, Keyword(p.slice()))),
         INT => Ok(p.advance_close(m, Int(p.slice().parse().unwrap()))),
+        INT => Ok(p.advance_close(m, Float(p.slice().parse().unwrap()))),
         STRING => {
             let s = p.slice();
             Ok(p.advance_close(m, Str(&s[1..s.len() - 1])))
