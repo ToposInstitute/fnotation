@@ -32,7 +32,7 @@ pub enum IsInfix {
 
 #[derive(PartialEq, Debug)]
 pub enum FExp0<'a> {
-    /// `f x => App(f, x)`
+    /// `f x => App1(f, x)`
     App1(&'a FExp<'a>, &'a FExp<'a>),
 
     /// `x + y => App2(f, x, y)
@@ -101,6 +101,22 @@ impl<'a> FExp<'a> {
         } else {
             self.to_doc()
         }
+    }
+
+    pub fn collect_args(&'a self) -> (&'a FExp<'a>, std::vec::Vec<&'a FExp<'a>>) {
+        let mut revargs = std::vec::Vec::new();
+        let mut cur = self;
+        loop {
+            match cur.ast0() {
+                App1(f, x) => {
+                    cur = f;
+                    revargs.push(*x);
+                }
+                _ => break,
+            }
+        }
+        revargs.reverse();
+        (cur, revargs)
     }
 
     fn to_doc(&self) -> RcDoc {
