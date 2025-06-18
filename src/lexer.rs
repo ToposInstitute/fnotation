@@ -1,5 +1,5 @@
 use crate::token::*;
-use std::{fmt, iter::Peekable, str::Chars};
+use std::{collections::HashSet, iter::Peekable, str::Chars};
 use tattle::{declare_error, Loc, Reporter};
 
 const OPERATOR_CHARS: &'static [char] =
@@ -11,7 +11,7 @@ struct Lexer<'a> {
     iter: Peekable<Chars<'a>>,
     source: &'a str,
     reporter: Reporter,
-    keywords: &'a [&'a str],
+    keywords: HashSet<String>,
     out: Vec<Token>,
     preceding_whitespace: bool,
     prev: usize,
@@ -19,7 +19,7 @@ struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str, keywords: &'a [&'a str], reporter: Reporter) -> Self {
+    pub fn new(source: &'a str, keywords: HashSet<String>, reporter: Reporter) -> Self {
         Lexer {
             iter: source.chars().peekable(),
             source,
@@ -32,11 +32,11 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn error<W: Fn(&mut fmt::Formatter) -> fmt::Result>(&mut self, writer: W) {
+    fn error(&mut self, message: String) {
         let l = Loc::new(self.prev, self.cur, None);
         self.out
             .push(Token::new(self.preceding_whitespace, ERROR, l));
-        self.reporter.error(l, LEX_ERROR, writer);
+        self.reporter.error(l, LEX_ERROR, message.into());
     }
 
     fn peek(&mut self) -> Option<char> {
@@ -81,10 +81,10 @@ impl<'a> Lexer<'a> {
 
 macro_rules! error {
     ($m:expr, $msg:literal) => {{
-        $m.error(|f| write!(f, $msg));
+        $m.error(format!($msg));
     }};
     ($m:expr, $msg:literal, $($arg:expr),+) => {{
-        $m.error(|f| write!(f, $msg, $($arg),+));
+        $m.error(format!($msg, $($arg),+));
     }};
 }
 
@@ -99,7 +99,7 @@ fn keyword(l: &mut Lexer, kind: Kind) {
 
 fn op(l: &mut Lexer, as_var: bool) {
     l.many(|c| OPERATOR_CHARS.contains(&c));
-    if l.keywords.contains(&l.slice()) {
+    if l.keywords.contains(l.slice()) {
         l.emit(if as_var { KEYWORD } else { KEYWORD_OP });
     } else {
         l.emit(if as_var { VAR } else { OP });
@@ -168,7 +168,7 @@ fn run(l: &mut Lexer) {
     }
 }
 
-pub fn lex(source: &str, keywords: &[&str], reporter: Reporter) -> Vec<Token> {
+pub fn lex(source: &str, keywords: HashSet<String>, reporter: Reporter) -> Vec<Token> {
     let mut lexer = Lexer::new(source, keywords, reporter);
     run(&mut lexer);
     lexer.out

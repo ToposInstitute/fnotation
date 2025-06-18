@@ -5,24 +5,23 @@ use bumpalo::collections::Vec;
 use bumpalo::Bump;
 use std::cell::Cell;
 use std::collections::HashMap;
-use std::fmt;
 use tattle::{declare_error, Loc, Reporter};
 
 macro_rules! error {
     ($p:expr, $m:expr, $msg:literal) => {{
-        $p.error($m, None, |f| write!(f, $msg))
+        $p.error($m, None, format!($msg))
     }};
     ($p:expr, $m:expr, $msg:literal, $($arg:expr),+) => {{
-        $p.error($m, None, |f| write!(f, $msg, $($arg),+))
+        $p.error($m, None, format!($msg, $($arg),+))
     }};
 }
 
 macro_rules! error_at {
     ($p:expr, $m:expr, $l:expr, $msg:literal) => {{
-        $p.error($m, Some($l), |f| write!(f, $msg))
+        $p.error($m, Some($l), format!($msg))
     }};
     ($p:expr, $m:expr, $l:expr, $msg:literal, $($arg:expr),+) => {{
-        $p.error($m, Some($l), |f| write!(f, $msg, $($arg),+))
+        $p.error($m, Some($l), format!($msg, $($arg),+))
     }};
 }
 
@@ -117,14 +116,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn error<W: Fn(&mut fmt::Formatter) -> fmt::Result>(
-        &self,
-        m: Marker,
-        loc: Option<Loc>,
-        writer: W,
-    ) -> &'a FExp<'a> {
+    pub fn error(&self, m: Marker, loc: Option<Loc>, message: String) -> &'a FExp<'a> {
         let loc = loc.unwrap_or_else(|| self.loc_from(m));
-        self.reporter.error(loc, SYNTAX_ERROR, writer);
+        self.reporter.error(loc, SYNTAX_ERROR, message);
         self.close(m, Error)
     }
 

@@ -8,10 +8,10 @@ use tattle::Reporter;
 
 macro_rules! error {
     ($p:expr, $m:expr, $msg:literal) => {{
-        $p.error($m, None, |f| write!(f, $msg))
+        $p.error($m, None, format!($msg))
     }};
     ($p:expr, $m:expr, $msg:literal, $($arg:expr),+) => {{
-        $p.error($m, None, |f| write!(f, $msg, $($arg),+))
+        $p.error($m, None, format!($msg, $($arg),+))
     }};
 }
 
@@ -147,16 +147,15 @@ pub fn parse<'a>(
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Write as _;
+    use std::collections::HashMap;
     use std::rc::Rc;
-    use std::{cell::RefCell, collections::HashMap};
 
     use bumpalo::Bump;
     use expect_test::{expect, Expect};
 
     use crate::lexer::lex;
 
-    use tattle::{Reporter, ReporterOutput};
+    use tattle::Reporter;
 
     use super::{parse, Prec};
     const DEMO_PRECTABLE: &[(&str, Prec)] = &[
@@ -170,18 +169,20 @@ mod tests {
     const DEMO_KEYWORDTABLE: &[&str] = &["="];
 
     fn test(input: &str, expected: Expect) {
-        let report = Rc::new(RefCell::new(String::new()));
-        let reporter = Reporter::new(ReporterOutput::String(report.clone()), input.to_string());
+        let reporter = Reporter::new(Rc::new(input.to_string()));
         let prectable: HashMap<_, _> = DEMO_PRECTABLE
             .iter()
             .map(|(name, p)| (name.to_string(), *p))
             .collect();
-        let tokens = lex(input, DEMO_KEYWORDTABLE, reporter.clone());
+        let tokens = lex(
+            input,
+            DEMO_KEYWORDTABLE.iter().map(|s| s.to_string()).collect(),
+            reporter.clone(),
+        );
         let arena = Bump::new();
-        let ast = parse(input, reporter, &prectable, &tokens, &arena);
-        write!(report.borrow_mut(), "{}", ast).unwrap();
-        let res = report.borrow();
-        expected.assert_eq(res.as_str());
+        let ast = parse(input, reporter.clone(), &prectable, &tokens, &arena);
+        reporter.info(format!("{}", ast));
+        expected.assert_eq(&reporter.report());
     }
 
     #[test]
