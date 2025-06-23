@@ -16,7 +16,8 @@ macro_rules! error {
 }
 
 const ARG_START: &'static [token::Kind] = &[
-    VAR, KEYWORD, INT, FLOAT, LPAREN, LBRACK, LCURLY, STRING, PRIM, SPECIAL, TAG, FIELD,
+    VAR, KEYWORD, OP, KEYWORD_OP, INT, FLOAT, LPAREN, LBRACK, LCURLY, STRING, PRIM, SPECIAL, TAG,
+    FIELD,
 ];
 
 type P<'a> = Parser<'a>;
@@ -69,6 +70,8 @@ fn arg<'a>(p: &P<'a>, following: bool) -> PResult<'a> {
         LCURLY => block(p),
         VAR => Ok(p.advance_close(m, Var(p.slice()))),
         KEYWORD => Ok(p.advance_close(m, Keyword(p.slice()))),
+        OP => Ok(p.advance_close(m, Var(p.slice()))),
+        KEYWORD_OP => Ok(p.advance_close(m, Keyword(p.slice()))),
         INT => Ok(p.advance_close(m, Int(p.slice().parse().unwrap()))),
         FLOAT => Ok(p.advance_close(m, Float(p.slice().parse().unwrap()))),
         STRING => {
@@ -95,7 +98,7 @@ fn arg<'a>(p: &P<'a>, following: bool) -> PResult<'a> {
     }?;
     // apply this to any arguments that don't have an intervening whitespace
     if !following {
-        while p.at_any(ARG_START) && p.no_preceding_whitespace() {
+        while p.at_any(ARG_START) && !p.at_any(&[OP, KEYWORD_OP]) && p.no_preceding_whitespace() {
             t = p.close(m, App1(t, arg(p, true)?));
         }
     }
@@ -105,8 +108,9 @@ fn arg<'a>(p: &P<'a>, following: bool) -> PResult<'a> {
 fn term<'a>(p: &P<'a>) -> PResult<'a> {
     let m = p.open();
     let mut stack = TermStack::new(m, p);
+    let mut start = true;
     loop {
-        if p.at_any(ARG_START) {
+        if p.at_any(ARG_START) && (start || !p.at_any(&[OP, KEYWORD_OP])) {
             stack.push_term(p, get(arg(p, false)));
         } else {
             let op_m = p.open();
@@ -130,6 +134,7 @@ fn term<'a>(p: &P<'a>) -> PResult<'a> {
             };
             stack.push_binop(p, op)?;
         }
+        start = false;
     }
     Ok(stack.finish(p))
 }
