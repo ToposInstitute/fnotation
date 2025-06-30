@@ -16,7 +16,7 @@ impl<'a> ParseConfig<'a> {
         }
     }
 
-    pub fn with_parsed<A, F: Fn(&FExp) -> Option<A>>(
+    pub fn with_parsed<A, F: FnOnce(&FExp) -> Option<A>>(
         &self,
         input: &str,
         reporter: Reporter,
