@@ -153,14 +153,13 @@ pub fn parse<'a>(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::rc::Rc;
 
     use bumpalo::Bump;
     use expect_test::{expect, Expect};
 
     use crate::lexer::lex;
 
-    use tattle::Reporter;
+    use tattle::{display::SourceInfo, Reporter};
 
     use super::{parse, Prec};
     const DEMO_PRECTABLE: &[(&str, Prec)] = &[
@@ -174,37 +173,85 @@ mod tests {
     const DEMO_KEYWORDTABLE: &[&str] = &["="];
 
     fn test(input: &str, expected: Expect) {
-        let reporter = Reporter::new(Rc::new(input.to_string()));
+        let reporter = Reporter::new();
         let prectable: HashMap<_, _> = DEMO_PRECTABLE
             .iter()
             .map(|(name, p)| (name.to_string(), *p))
             .collect();
         let tokens = lex(
-            input,
+            &input,
             DEMO_KEYWORDTABLE.iter().map(|s| s.to_string()).collect(),
             reporter.clone(),
         );
         let arena = Bump::new();
-        let ast = parse(input, reporter.clone(), &prectable, &tokens, &arena);
+        let ast = parse(&input, reporter.clone(), &prectable, &tokens, &arena);
         reporter.info(format!("{}", ast));
-        expected.assert_eq(&reporter.report());
+        expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
     }
 
     #[test]
     fn grammar_tests() {
-        test("1 + 1", expect!["1 + 1"]);
+        test(
+            "1 + 1",
+            expect![[r#"
+            info: 1 + 1
+        "#]],
+        );
         test(
             "{ a = 1; b = a + 4; 2 }",
-            expect!["{ a = 1; b = (a + 4); 2 }"],
+            expect![[r#"
+                info: { a = 1; b = (a + 4); 2 }
+            "#]],
         );
         test(
             "{ Option (a: @type) : @type = %enum[ 'some a, 'none ]; }",
-            expect!["{ ((Option (a : @type)) : @type) = (%enum ['some a, 'none]); }"],
+            expect![[r#"
+                info: { ((Option (a : @type)) : @type) = (%enum ['some a, 'none]); }
+            "#]],
         );
-        test("f x .b", expect!["f x .b"]);
-        test("f x.b", expect!["f (x .b)"]);
-        test("f @alloc[1]", expect!["f (@alloc [1])"]);
-        test("f @alloc [1]", expect!["f @alloc [1]"]);
-        test("a.1 * b.2 + c.1", expect!["((a .1) * (b .2)) + (c .1)"]);
+        test(
+            "f x .b",
+            expect![[r#"
+            info: f x .b
+        "#]],
+        );
+        test(
+            "f x.b",
+            expect![[r#"
+            info: f (x .b)
+        "#]],
+        );
+        test(
+            "f @alloc[1]",
+            expect![[r#"
+            info: f (@alloc [1])
+        "#]],
+        );
+        test(
+            "f @alloc [1]",
+            expect![[r#"
+            info: f @alloc [1]
+        "#]],
+        );
+        test(
+            "a.1 * b.2 + c.1",
+            expect![[r#"
+            info: ((a .1) * (b .2)) + (c .1)
+        "#]],
+        );
+        test(
+            "1 + +",
+            expect![[r#"
+                error[syntax]: expected term after binary op
+                --> <none>:1:1
+                1| 1 + +
+                1| ^^^^^
+                error[syntax]: uncompleted term
+                --> <none>:1:1
+                1| 1 + +
+                1| ^^^^^
+                info: !!!
+            "#]],
+        );
     }
 }

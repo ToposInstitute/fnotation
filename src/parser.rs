@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
 
     pub fn loc_from(&self, m: Marker) -> Loc {
         let n = self.closing_pos();
-        Loc::new(n.min(m), n, None)
+        Loc::new(n.min(m), n)
     }
 
     pub fn close(&self, m: Marker, node: FExp0<'a>) -> &'a FExp<'a> {
@@ -136,7 +136,7 @@ impl<'a> Parser<'a> {
 
     pub fn cur_loc(&self) -> Loc {
         if self.pos.get() >= self.tokens.len() {
-            Loc::new(self.src.len(), self.src.len() + 1, None)
+            Loc::new(self.src.len(), self.src.len() + 1)
         } else {
             self.tokens[self.pos.get()].loc
         }

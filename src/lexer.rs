@@ -33,7 +33,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn error(&mut self, message: String) {
-        let l = Loc::new(self.prev, self.cur, None);
+        let l = Loc::new(self.prev, self.cur);
         self.out
             .push(Token::new(self.preceding_whitespace, ERROR, l));
         self.reporter.error(l, LEX_ERROR, message.into());
@@ -54,7 +54,7 @@ impl<'a> Lexer<'a> {
         self.out.push(Token::new(
             self.preceding_whitespace,
             kind,
-            Loc::new(self.prev, self.cur, None),
+            Loc::new(self.prev, self.cur),
         ));
         self.preceding_whitespace = false;
         self.prev = self.cur;

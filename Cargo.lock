@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "fexplib"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "ansi_term",
  "bumpalo",
@@ -75,9 +75,7 @@ dependencies = [
 
 [[package]]
 name = "tattle"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a93fbff87c076f7b4cd9b112352d906f92881486774aab0d82ce9abdcc91bf95"
+version = "0.3.0"
 dependencies = [
  "ansi_term",
  "lazy_static",
