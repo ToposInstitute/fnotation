@@ -107,6 +107,9 @@ fn arg<'a>(p: &P<'a>, following: bool) -> PResult<'a> {
 
 fn term<'a>(p: &P<'a>) -> PResult<'a> {
     let m = p.open();
+    if p.at(EOF) {
+        return Err(error!(p, m, "empty term"));
+    }
     let mut stack = TermStack::new(m, p);
     let mut start = true;
     loop {
@@ -147,6 +150,8 @@ pub fn parse<'a>(
     arena: &'a Bump,
 ) -> &'a FNtn<'a> {
     let p = Parser::new(src, reporter, prectable, tokens, arena);
+    assert!(p.at(BOF));
+    p.advance();
     get(term(&p))
 }
 
@@ -197,6 +202,13 @@ mod tests {
             info: 1 + 1
         "#]],
         );
+        test("", expect![[r#"
+            error[syntax]: empty term
+            --> <none>:1:1
+            1| 
+            1| 
+            info: !!!
+        "#]]);
         test(
             "{ a = 1; b = a + 4; 2 }",
             expect![[r#"

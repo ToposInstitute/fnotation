@@ -5,6 +5,7 @@ use tattle::Loc;
 pub enum Kind {
     ERROR,
     EOF,
+    BOF,
 
     VAR,
     KEYWORD,

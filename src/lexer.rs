@@ -124,6 +124,7 @@ fn string(l: &mut Lexer) {
 }
 
 fn run(l: &mut Lexer) {
+    l.emit(BOF);
     while let Some(c) = l.advance() {
         match c {
             _ if c.is_whitespace() => {
