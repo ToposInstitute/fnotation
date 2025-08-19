@@ -4,20 +4,20 @@ use bumpalo::collections::Vec;
 use tattle::Loc;
 
 #[derive(PartialEq, Debug)]
-pub enum FExp<'a> {
-    L(Loc, FExp0<'a>),
+pub enum FNtn<'a> {
+    L(Loc, FNtn0<'a>),
 }
 
-pub use FExp::L;
+pub use FNtn::L;
 
-impl<'a> FExp<'a> {
+impl<'a> FNtn<'a> {
     pub fn loc(&self) -> Loc {
         match self {
             Self::L(l, _) => *l,
         }
     }
 
-    pub fn ast0(&self) -> &FExp0<'a> {
+    pub fn ast0(&self) -> &FNtn0<'a> {
         match self {
             Self::L(_, s) => s,
         }
@@ -31,12 +31,12 @@ pub enum IsInfix {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum FExp0<'a> {
+pub enum FNtn0<'a> {
     /// `f x => App1(f, x)`
-    App1(&'a FExp<'a>, &'a FExp<'a>),
+    App1(&'a FNtn<'a>, &'a FNtn<'a>),
 
     /// `x + y => App2(f, x, y)
-    App2(&'a FExp<'a>, &'a FExp<'a>, &'a FExp<'a>),
+    App2(&'a FNtn<'a>, &'a FNtn<'a>, &'a FNtn<'a>),
 
     /// `a => Var("a")`
     Var(&'a str),
@@ -44,11 +44,11 @@ pub enum FExp0<'a> {
     Keyword(&'a str),
 
     /// `[x, y] => Tuple([x, y])`
-    Tuple(Vec<'a, &'a FExp<'a>>),
+    Tuple(Vec<'a, &'a FNtn<'a>>),
 
     /// `{ x; y; } => Block([x, y], None)`
     /// `{ x; y; e } => Block([x, y], Some(e))`
-    Block(Vec<'a, &'a FExp<'a>>, Option<&'a FExp<'a>>),
+    Block(Vec<'a, &'a FNtn<'a>>, Option<&'a FNtn<'a>>),
 
     /// `3 => Int(3)`
     Int(u64),
@@ -71,11 +71,11 @@ pub enum FExp0<'a> {
     Error,
 }
 
-pub use FExp0::*;
+pub use FNtn0::*;
 
 use pretty::RcDoc;
 
-fn bexpr<'a>(args: &'a [&'a FExp<'a>]) -> RcDoc<'a> {
+fn bexpr<'a>(args: &'a [&'a FNtn<'a>]) -> RcDoc<'a> {
     RcDoc::text("[")
         .append(
             RcDoc::intersperse(
@@ -88,7 +88,7 @@ fn bexpr<'a>(args: &'a [&'a FExp<'a>]) -> RcDoc<'a> {
         .append(RcDoc::text("]"))
 }
 
-impl<'a> FExp<'a> {
+impl<'a> FNtn<'a> {
     fn parens(&self) -> RcDoc {
         let should_parenthesize = match self.ast0() {
             App1(_, _) | App2(_, _, _) => true,
@@ -103,7 +103,7 @@ impl<'a> FExp<'a> {
         }
     }
 
-    pub fn collect_args(&'a self) -> (&'a FExp<'a>, std::vec::Vec<&'a FExp<'a>>) {
+    pub fn collect_args(&'a self) -> (&'a FNtn<'a>, std::vec::Vec<&'a FNtn<'a>>) {
         let mut revargs = std::vec::Vec::new();
         let mut cur = self;
         loop {
@@ -161,7 +161,7 @@ impl<'a> FExp<'a> {
     }
 }
 
-impl<'a> fmt::Display for FExp<'a> {
+impl<'a> fmt::Display for FNtn<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.to_doc().render_fmt(100, f)
     }

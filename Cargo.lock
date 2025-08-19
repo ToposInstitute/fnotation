@@ -40,8 +40,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "fexplib"
-version = "0.4.0"
+name = "fnotation"
+version = "0.6.0"
 dependencies = [
  "ansi_term",
  "bumpalo",

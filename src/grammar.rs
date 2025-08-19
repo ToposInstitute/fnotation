@@ -29,7 +29,7 @@ fn parens<'a, F: FnMut(&P<'a>) -> PResult<'a>>(p: &P<'a>, mut f: F) -> PResult<'
     Ok(s?)
 }
 
-fn tuple<'a>(p: &P<'a>) -> Result<&'a FExp<'a>, &'a FExp<'a>> {
+fn tuple<'a>(p: &P<'a>) -> Result<&'a FNtn<'a>, &'a FNtn<'a>> {
     let m = p.open_with(LBRACK);
     let mut vals = p.new_vec();
     while p.at_any(ARG_START) {
@@ -145,7 +145,7 @@ pub fn parse<'a>(
     prectable: &'a HashMap<String, Prec>,
     tokens: &'a [Token],
     arena: &'a Bump,
-) -> &'a FExp<'a> {
+) -> &'a FNtn<'a> {
     let p = Parser::new(src, reporter, prectable, tokens, arena);
     get(term(&p))
 }

@@ -1,7 +1,7 @@
 use bumpalo::Bump;
 use tattle::Reporter;
 
-use crate::{grammar::parse, lexer::lex, parser::Prec, FExp};
+use crate::{grammar::parse, lexer::lex, parser::Prec, FNtn};
 
 pub struct ParseConfig<'a> {
     precedences: &'a [(&'a str, Prec)],
@@ -16,7 +16,7 @@ impl<'a> ParseConfig<'a> {
         }
     }
 
-    pub fn with_parsed<A, F: FnOnce(&FExp) -> Option<A>>(
+    pub fn with_parsed<A, F: FnOnce(&FNtn) -> Option<A>>(
         &self,
         input: &str,
         reporter: Reporter,

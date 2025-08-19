@@ -100,8 +100,8 @@ impl<'a> Parser<'a> {
         Loc::new(n.min(m), n)
     }
 
-    pub fn close(&self, m: Marker, node: FExp0<'a>) -> &'a FExp<'a> {
-        self.arena.alloc(FExp::L(self.loc_from(m), node))
+    pub fn close(&self, m: Marker, node: FNtn0<'a>) -> &'a FNtn<'a> {
+        self.arena.alloc(FNtn::L(self.loc_from(m), node))
     }
 
     pub fn new_vec<T>(&self) -> Vec<'a, T> {
@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn error(&self, m: Marker, loc: Option<Loc>, message: String) -> &'a FExp<'a> {
+    pub fn error(&self, m: Marker, loc: Option<Loc>, message: String) -> &'a FNtn<'a> {
         let loc = loc.unwrap_or_else(|| self.loc_from(m));
         self.reporter.error(loc, SYNTAX_ERROR, message);
         self.close(m, Error)
@@ -142,7 +142,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn eat(&self, m: Marker, kind: Kind) -> Result<(), &'a FExp<'a>> {
+    pub fn eat(&self, m: Marker, kind: Kind) -> Result<(), &'a FNtn<'a>> {
         let cur = self.cur();
         if cur == kind {
             self.advance();
@@ -166,20 +166,20 @@ impl<'a> Parser<'a> {
         m
     }
 
-    pub fn advance_close(&self, m: Marker, node: FExp0<'a>) -> &'a FExp<'a> {
+    pub fn advance_close(&self, m: Marker, node: FNtn0<'a>) -> &'a FNtn<'a> {
         self.advance();
         self.close(m, node)
     }
 
-    pub fn slice_when(&self, m: Marker, kind: Kind) -> Result<&'a str, &'a FExp<'a>> {
+    pub fn slice_when(&self, m: Marker, kind: Kind) -> Result<&'a str, &'a FNtn<'a>> {
         let s = self.slice();
         self.eat(m, kind).map(|_| s)
     }
 }
 
-pub type PResult<'a> = Result<&'a FExp<'a>, &'a FExp<'a>>;
+pub type PResult<'a> = Result<&'a FNtn<'a>, &'a FNtn<'a>>;
 
-pub fn get<'a>(r: PResult<'a>) -> &'a FExp<'a> {
+pub fn get<'a>(r: PResult<'a>) -> &'a FNtn<'a> {
     r.unwrap_or_else(|s| s)
 }
 
@@ -244,7 +244,7 @@ impl PartialOrd for Prec {
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct BinOp<'a> {
-    pub expr: &'a FExp<'a>,
+    pub expr: &'a FNtn<'a>,
     pub prec: Prec,
 }
 
@@ -253,7 +253,7 @@ impl<'a> BinOp<'a> {
         self.expr.loc().start
     }
 
-    fn app(&self, x: &'a FExp<'a>, y: &'a FExp<'a>) -> FExp0<'a> {
+    fn app(&self, x: &'a FNtn<'a>, y: &'a FNtn<'a>) -> FNtn0<'a> {
         App2(self.expr, x, y)
     }
 }
@@ -265,8 +265,8 @@ impl<'a> PartialOrd for BinOp<'a> {
 }
 
 enum PrecState<'a> {
-    Complete(&'a FExp<'a>),
-    HalfApp(&'a FExp<'a>, BinOp<'a>),
+    Complete(&'a FNtn<'a>),
+    HalfApp(&'a FNtn<'a>, BinOp<'a>),
     Error(usize), // start position of the error
 }
 
@@ -283,7 +283,7 @@ impl<'a> TermStack<'a> {
         }
     }
 
-    pub fn push_term(&mut self, p: &Parser<'a>, i: &'a FExp<'a>) {
+    pub fn push_term(&mut self, p: &Parser<'a>, i: &'a FNtn<'a>) {
         use PrecState::*;
         match self.states.pop() {
             None => self.states.push(Complete(i)),
@@ -300,7 +300,7 @@ impl<'a> TermStack<'a> {
         }
     }
 
-    pub fn collect_for(&mut self, p: &Parser<'a>, prec: Prec, mut i: &'a FExp<'a>) -> &'a FExp<'a> {
+    pub fn collect_for(&mut self, p: &Parser<'a>, prec: Prec, mut i: &'a FNtn<'a>) -> &'a FNtn<'a> {
         use PrecState::*;
         while let Some(x) = self.states.pop() {
             match x {
@@ -325,7 +325,7 @@ impl<'a> TermStack<'a> {
         i
     }
 
-    pub fn push_binop(&mut self, p: &Parser<'a>, op: BinOp<'a>) -> Result<(), &'a FExp<'a>> {
+    pub fn push_binop(&mut self, p: &Parser<'a>, op: BinOp<'a>) -> Result<(), &'a FNtn<'a>> {
         use PrecState::*;
         match self.states.pop() {
             None => Err(error!(p, op.start(), "expected term before binary op"))?,
@@ -344,7 +344,7 @@ impl<'a> TermStack<'a> {
         Ok(())
     }
 
-    pub fn finish(mut self, p: &Parser<'a>) -> &'a FExp<'a> {
+    pub fn finish(mut self, p: &Parser<'a>) -> &'a FNtn<'a> {
         use PrecState::*;
         if self.states.is_empty() {
             return error!(p, self.start, "uncompleted term");
