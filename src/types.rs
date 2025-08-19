@@ -71,6 +71,18 @@ pub enum FNtn0<'a> {
     Error,
 }
 
+pub struct FNtnTop<'a> {
+    pub decl: &'a str,
+    pub loc: Loc,
+    pub body: &'a FNtn<'a>,
+}
+
+impl<'a> FNtnTop<'a> {
+    pub fn new(decl: &'a str, loc: Loc, body: &'a FNtn<'a>) -> Self {
+        Self { decl, loc, body }
+    }
+}
+
 pub use FNtn0::*;
 
 use pretty::RcDoc;

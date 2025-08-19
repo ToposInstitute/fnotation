@@ -142,7 +142,18 @@ fn term<'a>(p: &P<'a>) -> PResult<'a> {
     Ok(stack.finish(p))
 }
 
-pub fn parse<'a>(
+pub fn topntn<'a>(p: &P<'a>) -> Option<FNtnTop<'a>> {
+    let m = p.open();
+    let s = p.slice();
+    if let Err(_) = p.eat(m, TOPDECL) {
+        p.advance(); // don't get stuck in loop!
+        return None;
+    };
+    let t = get(term(p));
+    Some(FNtnTop::new(s, p.loc_from(m), t))
+}
+
+pub fn parse_term<'a>(
     src: &'a str,
     reporter: Reporter,
     prectable: &'a HashMap<String, Prec>,
@@ -155,6 +166,25 @@ pub fn parse<'a>(
     get(term(&p))
 }
 
+pub fn parse_top<'a>(
+    src: &'a str,
+    reporter: Reporter,
+    prectable: &'a HashMap<String, Prec>,
+    tokens: &'a [Token],
+    arena: &'a Bump,
+) -> Vec<FNtnTop<'a>> {
+    let mut out = Vec::new();
+    let p = Parser::new(src, reporter, prectable, tokens, arena);
+    assert!(p.at(BOF));
+    p.advance();
+    while !p.at(EOF) {
+        if let Some(t) = topntn(&p) {
+            out.push(t)
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -162,35 +192,52 @@ mod tests {
     use bumpalo::Bump;
     use expect_test::{expect, Expect};
 
-    use crate::lexer::lex;
+    use crate::{lexer::lex, ParseConfig};
 
     use tattle::{display::SourceInfo, Reporter};
 
-    use super::{parse, Prec};
-    const DEMO_PRECTABLE: &[(&str, Prec)] = &[
-        ("=", Prec::lassoc(10)),
-        (":", Prec::lassoc(20)),
-        ("+", Prec::lassoc(50)),
-        ("-", Prec::lassoc(50)),
-        ("*", Prec::lassoc(60)),
-        ("/", Prec::lassoc(60)),
-    ];
-    const DEMO_KEYWORDTABLE: &[&str] = &["=", "E"];
+    use super::{parse_term, parse_top, Prec};
+
+    const DEMO_PARSECONFIG: ParseConfig = ParseConfig::new(
+        &[
+            ("=", Prec::lassoc(10)),
+            (":", Prec::lassoc(20)),
+            ("+", Prec::lassoc(50)),
+            ("-", Prec::lassoc(50)),
+            ("*", Prec::lassoc(60)),
+            ("/", Prec::lassoc(60)),
+        ],
+        &["=", "E"],
+        &["def"],
+    );
 
     fn test(input: &str, expected: Expect) {
         let reporter = Reporter::new();
-        let prectable: HashMap<_, _> = DEMO_PRECTABLE
+        let prectable: HashMap<_, _> = DEMO_PARSECONFIG
+            .precedences
             .iter()
             .map(|(name, p)| (name.to_string(), *p))
             .collect();
-        let tokens = lex(
-            &input,
-            DEMO_KEYWORDTABLE.iter().map(|s| s.to_string()).collect(),
-            reporter.clone(),
-        );
+        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone());
         let arena = Bump::new();
-        let ast = parse(&input, reporter.clone(), &prectable, &tokens, &arena);
+        let ast = parse_term(&input, reporter.clone(), &prectable, &tokens, &arena);
         reporter.info(format!("{}", ast));
+        expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
+    }
+
+    fn test_top(input: &str, expected: Expect) {
+        let reporter = Reporter::new();
+        let prectable: HashMap<_, _> = DEMO_PARSECONFIG
+            .precedences
+            .iter()
+            .map(|(name, p)| (name.to_string(), *p))
+            .collect();
+        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone());
+        let arena = Bump::new();
+        let toplevel = parse_top(&input, reporter.clone(), &prectable, &tokens, &arena);
+        for topntn in toplevel.iter() {
+            reporter.info(format!("{} {}", topntn.decl, topntn.body))
+        }
         expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
     }
 
@@ -272,6 +319,12 @@ mod tests {
                 1| 1 + +
                 1| ^^^^^
                 info: !!!
+            "#]],
+        );
+        test_top(
+            "def f x = x * x",
+            expect![[r#"
+                info: def (f x) = (x * x)
             "#]],
         );
     }

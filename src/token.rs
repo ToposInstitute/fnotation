@@ -9,6 +9,7 @@ pub enum Kind {
 
     VAR,
     KEYWORD,
+    TOPDECL,
     PRIM,
     SPECIAL,
     FIELD,

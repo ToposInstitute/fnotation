@@ -1,5 +1,5 @@
-use crate::token::*;
-use std::{collections::HashSet, iter::Peekable, str::Chars};
+use crate::{token::*, ParseConfig};
+use std::{iter::Peekable, str::Chars};
 use tattle::{declare_error, Loc, Reporter};
 
 const OPERATOR_CHARS: &'static [char] =
@@ -11,7 +11,7 @@ struct Lexer<'a> {
     iter: Peekable<Chars<'a>>,
     source: &'a str,
     reporter: Reporter,
-    keywords: HashSet<String>,
+    parse_config: &'a ParseConfig<'a>,
     out: Vec<Token>,
     preceding_whitespace: bool,
     prev: usize,
@@ -19,12 +19,12 @@ struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str, keywords: HashSet<String>, reporter: Reporter) -> Self {
+    pub fn new(source: &'a str, parse_config: &'a ParseConfig, reporter: Reporter) -> Self {
         Lexer {
             iter: source.chars().peekable(),
             source,
             reporter,
-            keywords,
+            parse_config,
             out: Vec::new(),
             preceding_whitespace: false,
             prev: 0,
@@ -99,7 +99,7 @@ fn keyword(l: &mut Lexer, kind: Kind) {
 
 fn op(l: &mut Lexer, as_var: bool) {
     l.many(|c| OPERATOR_CHARS.contains(&c));
-    if l.keywords.contains(l.slice()) {
+    if l.parse_config.is_keyword(l.slice()) {
         l.emit(if as_var { KEYWORD } else { KEYWORD_OP });
     } else {
         l.emit(if as_var { VAR } else { OP });
@@ -134,8 +134,10 @@ fn run(l: &mut Lexer) {
             }
             _ if c.is_alphabetic() || c == '_' => {
                 word(l);
-                if l.keywords.contains(l.slice()) {
+                if l.parse_config.is_keyword(l.slice()) {
                     l.emit(KEYWORD);
+                } else if l.parse_config.is_toplevel(l.slice()) {
+                    l.emit(TOPDECL)
                 } else {
                     l.emit(VAR);
                 }
@@ -173,32 +175,27 @@ fn run(l: &mut Lexer) {
     }
 }
 
-pub fn lex(source: &str, keywords: HashSet<String>, reporter: Reporter) -> Vec<Token> {
-    let mut lexer = Lexer::new(source, keywords, reporter);
+pub fn lex(source: &str, parse_config: &ParseConfig, reporter: Reporter) -> Vec<Token> {
+    let mut lexer = Lexer::new(source, parse_config, reporter);
     run(&mut lexer);
     lexer.out
 }
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-
-    use bumpalo::Bump;
     use expect_test::{expect, Expect};
+
+    use crate::ParseConfig;
 
     use super::lex;
 
     use tattle::{display::SourceInfo, Reporter};
 
-    const DEMO_KEYWORDTABLE: &[&str] = &["=", "E"];
+    const DEMO_PARSECONFIG: ParseConfig = ParseConfig::new(&[], &[], &[]);
 
     fn test(input: &str, expected: Expect) {
         let reporter = Reporter::new();
-        let tokens = lex(
-            &input,
-            DEMO_KEYWORDTABLE.iter().map(|s| s.to_string()).collect(),
-            reporter.clone(),
-        );
+        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone());
         reporter.info(format!("{:?}", tokens));
         expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
     }
@@ -208,8 +205,8 @@ mod test {
         test(
             "E",
             expect![[r#"
-            info: [Token { preceding_whitespace: false, kind: BOF, loc: Loc { start: 0, end: 0 } }, Token { preceding_whitespace: false, kind: KEYWORD, loc: Loc { start: 0, end: 1 } }]
-        "#]],
+                info: [Token { preceding_whitespace: false, kind: BOF, loc: Loc { start: 0, end: 0 } }, Token { preceding_whitespace: false, kind: VAR, loc: Loc { start: 0, end: 1 } }]
+            "#]],
         );
         test(
             "A",
