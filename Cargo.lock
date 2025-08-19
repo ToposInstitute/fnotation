@@ -75,7 +75,9 @@ dependencies = [
 
 [[package]]
 name = "tattle"
-version = "0.3.0"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de3526bfce1ac07efdd3688e6f741c89cc407e8b00a89e4c32970a91c0052a06"
 dependencies = [
  "ansi_term",
  "lazy_static",
