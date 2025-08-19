@@ -134,7 +134,11 @@ fn run(l: &mut Lexer) {
             }
             _ if c.is_alphabetic() || c == '_' => {
                 word(l);
-                l.emit(VAR);
+                if l.keywords.contains(l.slice()) {
+                    l.emit(KEYWORD);
+                } else {
+                    l.emit(VAR);
+                }
             }
             _ if c.is_digit(10) => num(l),
             _ if OPERATOR_CHARS.contains(&c) => op(l, false),
@@ -173,4 +177,45 @@ pub fn lex(source: &str, keywords: HashSet<String>, reporter: Reporter) -> Vec<T
     let mut lexer = Lexer::new(source, keywords, reporter);
     run(&mut lexer);
     lexer.out
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use bumpalo::Bump;
+    use expect_test::{expect, Expect};
+
+    use super::lex;
+
+    use tattle::{display::SourceInfo, Reporter};
+
+    const DEMO_KEYWORDTABLE: &[&str] = &["=", "E"];
+
+    fn test(input: &str, expected: Expect) {
+        let reporter = Reporter::new();
+        let tokens = lex(
+            &input,
+            DEMO_KEYWORDTABLE.iter().map(|s| s.to_string()).collect(),
+            reporter.clone(),
+        );
+        reporter.info(format!("{:?}", tokens));
+        expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
+    }
+
+    #[test]
+    fn lexer_tests() {
+        test(
+            "E",
+            expect![[r#"
+            info: [Token { preceding_whitespace: false, kind: BOF, loc: Loc { start: 0, end: 0 } }, Token { preceding_whitespace: false, kind: KEYWORD, loc: Loc { start: 0, end: 1 } }]
+        "#]],
+        );
+        test(
+            "A",
+            expect![[r#"
+            info: [Token { preceding_whitespace: false, kind: BOF, loc: Loc { start: 0, end: 0 } }, Token { preceding_whitespace: false, kind: VAR, loc: Loc { start: 0, end: 1 } }]
+        "#]],
+        );
+    }
 }

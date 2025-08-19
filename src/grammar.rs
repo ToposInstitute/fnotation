@@ -175,7 +175,7 @@ mod tests {
         ("*", Prec::lassoc(60)),
         ("/", Prec::lassoc(60)),
     ];
-    const DEMO_KEYWORDTABLE: &[&str] = &["="];
+    const DEMO_KEYWORDTABLE: &[&str] = &["=", "E"];
 
     fn test(input: &str, expected: Expect) {
         let reporter = Reporter::new();
@@ -202,13 +202,22 @@ mod tests {
             info: 1 + 1
         "#]],
         );
-        test("", expect![[r#"
-            error[syntax]: empty term
-            --> <none>:1:1
-            1| 
-            1| 
-            info: !!!
-        "#]]);
+        test(
+            "",
+            expect![[r#"
+                error[syntax]: empty term
+                --> <none>:1:1
+                1| 
+                1| 
+                info: !!!
+            "#]],
+        );
+        test(
+            "E a",
+            expect![[r#"
+                info: E a
+            "#]],
+        );
         test(
             "{ a = 1; b = a + 4; 2 }",
             expect![[r#"

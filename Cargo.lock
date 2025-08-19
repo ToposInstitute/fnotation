@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "fnotation"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "ansi_term",
  "bumpalo",
