@@ -145,9 +145,18 @@ fn run(l: &mut Lexer) {
             _ if c.is_digit(10) => num(l),
             _ if OPERATOR_CHARS.contains(&c) => op(l, false),
             '#' => {
-                while let Some(c) = l.advance() {
-                    if c == '\n' {
-                        break;
+                if let Some(c) = l.advance() {
+                    if c == '(' {
+                        l.emit(ANNOT);
+                    } else if c == '/' {
+                        while let Some(c) = l.advance() {
+                            if c == '\n' {
+                                l.skip();
+                                break;
+                            }
+                        }
+                    } else {
+                        l.error(format!("unknown command letter '{c}'"))
                     }
                 }
             }
@@ -184,19 +193,25 @@ pub fn lex(source: &str, parse_config: &ParseConfig, reporter: Reporter) -> Vec<
 #[cfg(test)]
 mod test {
     use expect_test::{expect, Expect};
+    use indoc::indoc;
 
     use crate::ParseConfig;
 
     use super::lex;
 
+    use std::fmt::Write;
     use tattle::{display::SourceInfo, Reporter};
 
-    const DEMO_PARSECONFIG: ParseConfig = ParseConfig::new(&[], &[], &[]);
+    const DEMO_PARSECONFIG: ParseConfig = ParseConfig::new(&[], &[], &["model"]);
 
     fn test(input: &str, expected: Expect) {
         let reporter = Reporter::new();
         let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone());
-        reporter.info(format!("{:?}", tokens));
+        let mut out = String::new();
+        for tok in tokens.iter() {
+            write!(&mut out, "{} ", tok).unwrap();
+        }
+        reporter.info(out);
         expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
     }
 
@@ -205,14 +220,28 @@ mod test {
         test(
             "E",
             expect![[r#"
-                info: [Token { preceding_whitespace: false, kind: BOF, loc: Loc { start: 0, end: 0 } }, Token { preceding_whitespace: false, kind: VAR, loc: Loc { start: 0, end: 1 } }]
+                info: BOF:0-0 VAR:0-1 
             "#]],
         );
         test(
             "A",
             expect![[r#"
-            info: [Token { preceding_whitespace: false, kind: BOF, loc: Loc { start: 0, end: 0 } }, Token { preceding_whitespace: false, kind: VAR, loc: Loc { start: 0, end: 1 } }]
-        "#]],
+                info: BOF:0-0 VAR:0-1 
+            "#]],
+        );
+        test(
+            indoc! {r#"
+                model B
+                #@error
+                model A
+            "#},
+            expect![[r#"
+                error[lex]: unknown command letter '@'
+                --> <none>:2:1
+                2| #@error
+                2| ^^
+                info: BOF:0-0 TOPDECL:0-5 VAR:6-7 ERROR:8-10 VAR:8-15 TOPDECL:16-21 VAR:22-23 
+            "#]],
         );
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "fnotation"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 license = "MIT"
 keywords = ["compilers", "parsing"]
@@ -13,6 +13,7 @@ readme = "README.md"
 [dependencies]
 ansi_term = "0.12.1"
 bumpalo = { version = "3.17.0", features = ["collections"] }
+indoc = "2.0.6"
 pretty = "0.12.3"
 tattle = "0.4.0"
 

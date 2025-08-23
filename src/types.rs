@@ -72,14 +72,25 @@ pub enum FNtn0<'a> {
 }
 
 pub struct FNtnTop<'a> {
-    pub decl: &'a str,
+    pub annotations: &'a [&'a FNtn<'a>],
+    pub name: &'a str,
     pub loc: Loc,
     pub body: &'a FNtn<'a>,
 }
 
 impl<'a> FNtnTop<'a> {
-    pub fn new(decl: &'a str, loc: Loc, body: &'a FNtn<'a>) -> Self {
-        Self { decl, loc, body }
+    pub fn new(
+        annotations: &'a [&'a FNtn<'a>],
+        name: &'a str,
+        loc: Loc,
+        body: &'a FNtn<'a>,
+    ) -> Self {
+        Self {
+            annotations,
+            name,
+            loc,
+            body,
+        }
     }
 }
 

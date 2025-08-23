@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::parser::*;
 use crate::token::{self, *};
 use crate::types::*;
-use bumpalo::Bump;
+use bumpalo::{collections::Vec as BumpVec, Bump};
 use tattle::Reporter;
 
 macro_rules! error {
@@ -142,7 +142,7 @@ fn term<'a>(p: &P<'a>) -> PResult<'a> {
     Ok(stack.finish(p))
 }
 
-pub fn topntn<'a>(p: &P<'a>) -> Option<FNtnTop<'a>> {
+pub fn decl<'a>(annotations: &'a [&'a FNtn<'a>], p: &P<'a>) -> Option<FNtnTop<'a>> {
     let m = p.open();
     let s = p.slice();
     if let Err(_) = p.eat(m, TOPDECL) {
@@ -150,7 +150,7 @@ pub fn topntn<'a>(p: &P<'a>) -> Option<FNtnTop<'a>> {
         return None;
     };
     let t = get(term(p));
-    Some(FNtnTop::new(s, p.loc_from(m), t))
+    Some(FNtnTop::new(annotations, s, p.loc_from(m), t))
 }
 
 pub fn parse_term<'a>(
@@ -177,8 +177,19 @@ pub fn parse_top<'a>(
     let p = Parser::new(src, reporter, prectable, tokens, arena);
     assert!(p.at(BOF));
     p.advance();
+    let mut annotations = BumpVec::new_in(arena);
     while !p.at(EOF) {
-        if let Some(t) = topntn(&p) {
+        if p.at(ANNOT) {
+            let m = p.open();
+            p.advance();
+            let n = get(term(&p));
+            let _ = p.eat(m, RPAREN);
+            annotations.push(n);
+        }
+        if let Some(t) = decl(
+            std::mem::replace(&mut annotations, BumpVec::new_in(arena)).into_bump_slice(),
+            &p,
+        ) {
             out.push(t)
         }
     }
@@ -191,6 +202,7 @@ mod tests {
 
     use bumpalo::Bump;
     use expect_test::{expect, Expect};
+    use indoc::indoc;
 
     use crate::{lexer::lex, ParseConfig};
 
@@ -236,7 +248,10 @@ mod tests {
         let arena = Bump::new();
         let toplevel = parse_top(&input, reporter.clone(), &prectable, &tokens, &arena);
         for topntn in toplevel.iter() {
-            reporter.info(format!("{} {}", topntn.decl, topntn.body))
+            for annot in topntn.annotations {
+                reporter.info(format!("annot: {}", annot));
+            }
+            reporter.info(format!("{} {}", topntn.name, topntn.body))
         }
         expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
     }
@@ -327,5 +342,20 @@ mod tests {
                 info: def (f x) = (x * x)
             "#]],
         );
+        test_top(
+            indoc! {r#"
+                def f x = x * x
+
+                #/ a comment
+
+                #(annotation)
+                def g x = f (f x)
+            "#},
+            expect![[r#"
+                info: def (f x) = (x * x)
+                info: annot: annotation
+                info: def (g x) = (f (f x))
+            "#]],
+        )
     }
 }

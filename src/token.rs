@@ -1,3 +1,4 @@
+use std::fmt::{self, Write};
 use tattle::Loc;
 
 #[allow(non_camel_case_types)]
@@ -6,6 +7,7 @@ pub enum Kind {
     ERROR,
     EOF,
     BOF,
+    ANNOT,
 
     VAR,
     KEYWORD,
@@ -47,5 +49,11 @@ impl Token {
             kind,
             loc,
         }
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}:{}-{}", self.kind, self.loc.start, self.loc.end)
     }
 }
