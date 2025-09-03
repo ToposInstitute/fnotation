@@ -104,6 +104,10 @@ impl<'a> Parser<'a> {
         self.arena.alloc(FNtn::L(self.loc_from(m), node))
     }
 
+    pub fn close_with(&self, m: Marker, e: Marker, node: FNtn0<'a>) -> &'a FNtn<'a> {
+        self.arena.alloc(FNtn::L(Loc::new(m, e), node))
+    }
+
     pub fn new_vec<T>(&self) -> Vec<'a, T> {
         Vec::new_in(self.arena)
     }
@@ -310,7 +314,7 @@ impl<'a> TermStack<'a> {
                 }
                 HalfApp(l, op) => {
                     if op.prec > prec {
-                        i = p.close(l.loc().start, op.app(l, i))
+                        i = p.close_with(l.loc().start, i.loc().end, op.app(l, i))
                     } else {
                         self.states.push(HalfApp(l, op));
                         return i;
