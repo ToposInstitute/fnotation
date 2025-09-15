@@ -60,7 +60,12 @@ impl<'a> Parser<'a> {
 
     pub fn cur(&self) -> Kind {
         if self.gas.get() == 0 {
-            panic!("probable infinite loop in grammar")
+            println!("probable infinite loop in grammar, stuck after parsing:");
+            for tok in self.tokens[0..self.pos.get()].iter() {
+                print!("{} ", tok);
+            }
+            println!();
+            panic!();
         }
 
         self.gas.set(self.gas.get() - 1);
@@ -132,6 +137,37 @@ impl<'a> Parser<'a> {
 
     pub fn at(&self, token: Kind) -> bool {
         self.cur() == token
+    }
+
+    /// Only use in situation we are sure it won't
+    /// cause an infinite loop.
+    pub fn cur_free(&self) -> Kind {
+        if self.pos.get() >= self.tokens.len() {
+            token::EOF
+        } else {
+            self.tokens[self.pos.get()].kind
+        }
+    }
+
+    pub fn at_free(&self, token: Kind) -> bool {
+        self.cur_free() == token
+    }
+
+    pub fn eat_free(&self, m: Marker, kind: Kind) -> Result<(), &'a FNtn<'a>> {
+        let cur = self.cur_free();
+        if cur == kind {
+            self.advance();
+            Ok(())
+        } else {
+            Err(error_at!(
+                self,
+                m,
+                self.cur_loc(),
+                "unexpected token {:?}, expected {:?}",
+                cur,
+                kind
+            ))
+        }
     }
 
     pub fn at_any(&self, tokens: &[Kind]) -> bool {

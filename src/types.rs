@@ -112,7 +112,7 @@ fn bexpr<'a>(args: &'a [&'a FNtn<'a>]) -> RcDoc<'a> {
 }
 
 impl<'a> FNtn<'a> {
-    fn parens(&self) -> RcDoc {
+    fn parens<'b>(&'b self) -> RcDoc<'b> {
         let should_parenthesize = match self.ast0() {
             App1(_, _) | App2(_, _, _) => true,
             _ => false,
@@ -142,7 +142,7 @@ impl<'a> FNtn<'a> {
         (cur, revargs)
     }
 
-    fn to_doc(&self) -> RcDoc {
+    fn to_doc<'b>(&'b self) -> RcDoc<'b> {
         match self.ast0() {
             App1(f, arg) => f
                 .to_doc()

@@ -1,4 +1,4 @@
-use std::fmt::{self, Write};
+use std::fmt;
 use tattle::Loc;
 
 #[allow(non_camel_case_types)]

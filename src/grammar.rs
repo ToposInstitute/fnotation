@@ -25,7 +25,7 @@ type P<'a> = Parser<'a>;
 fn parens<'a, F: FnMut(&P<'a>) -> PResult<'a>>(p: &P<'a>, mut f: F) -> PResult<'a> {
     let m = p.open_with(LPAREN);
     let s = f(p);
-    p.eat(m, RPAREN)?;
+    p.eat_free(m, RPAREN)?;
     Ok(s?)
 }
 
@@ -34,13 +34,15 @@ fn tuple<'a>(p: &P<'a>) -> Result<&'a FNtn<'a>, &'a FNtn<'a>> {
     let mut vals = p.new_vec();
     while p.at_any(ARG_START) {
         vals.push(get(term(p)));
-        if p.at(COMMA) {
+        // we use at_free here so that when we are unwinding a bunch of
+        // recursive calls to arg, we don't use up all the gas
+        if p.at_free(COMMA) {
             p.advance();
         } else {
             break;
         }
     }
-    p.eat(m, RBRACK)?;
+    p.eat_free(m, RBRACK)?;
     Ok(p.close(m, Tuple(vals)))
 }
 
@@ -49,15 +51,17 @@ fn block<'a>(p: &P<'a>) -> PResult<'a> {
     let mut tms = p.new_vec();
     while p.at_any(ARG_START) {
         let t = get(term(p));
-        if p.at(SEMICOLON) {
+        // we use at_free here so that when we are unwinding a bunch of
+        // recursive calls to arg, we don't use up all the gas
+        if p.at_free(SEMICOLON) {
             tms.push(t);
             p.advance();
         } else {
-            p.eat(m, RCURLY)?;
+            p.eat_free(m, RCURLY)?;
             return Ok(p.close(m, Block(tms, Some(t))));
         }
     }
-    p.eat(m, RCURLY)?;
+    p.eat_free(m, RCURLY)?;
     return Ok(p.close(m, Block(tms, None)));
 }
 
@@ -72,8 +76,20 @@ fn arg<'a>(p: &P<'a>, following: bool) -> PResult<'a> {
         KEYWORD => Ok(p.advance_close(m, Keyword(p.slice()))),
         OP => Ok(p.advance_close(m, Var(p.slice()))),
         KEYWORD_OP => Ok(p.advance_close(m, Keyword(p.slice()))),
-        INT => Ok(p.advance_close(m, Int(p.slice().parse().unwrap()))),
-        FLOAT => Ok(p.advance_close(m, Float(p.slice().parse().unwrap()))),
+        INT => match p.slice().parse() {
+            Ok(i) => Ok(p.advance_close(m, Int(i))),
+            Err(e) => {
+                p.advance();
+                Err(error!(p, m, "could not parse int: {e}"))
+            }
+        },
+        FLOAT => match p.slice().parse() {
+            Ok(x) => Ok(p.advance_close(m, Float(x))),
+            Err(e) => {
+                p.advance();
+                Err(error!(p, m, "could not parse float: {e}"))
+            }
+        },
         STRING => {
             let s = p.slice();
             Ok(p.advance_close(m, Str(&s[1..s.len() - 1])))
@@ -94,7 +110,11 @@ fn arg<'a>(p: &P<'a>, following: bool) -> PResult<'a> {
             let name = &p.slice()[1..];
             Ok(p.advance_close(m, Tag(name)))
         }
-        t => Err(error!(p, m, "expected start of term, found {:?}", t)),
+        t => {
+            let e = error!(p, m, "expected start of term, found {:?}", t);
+            p.advance();
+            Err(e)
+        }
     }?;
     // apply this to any arguments that don't have an intervening whitespace
     if !following {
@@ -110,10 +130,17 @@ fn term<'a>(p: &P<'a>) -> PResult<'a> {
     if p.at(EOF) {
         return Err(error!(p, m, "empty term"));
     }
+    if !p.at_any(ARG_START) {
+        return Err(error!(p, m, "{:?} does not start a term argument", p.cur()));
+    }
+    let first_arg = arg(p, false)?;
+    if !p.at_any(ARG_START) || p.at_any(&[OP, KEYWORD_OP]) {
+        return Ok(first_arg);
+    }
     let mut stack = TermStack::new(m, p);
-    let mut start = true;
-    loop {
-        if p.at_any(ARG_START) && (start || !p.at_any(&[OP, KEYWORD_OP])) {
+    stack.push_term(p, first_arg);
+    while !p.at(EOF) {
+        if p.at_any(ARG_START) && !p.at_any(&[OP, KEYWORD_OP]) {
             stack.push_term(p, get(arg(p, false)));
         } else {
             let op_m = p.open();
@@ -137,7 +164,6 @@ fn term<'a>(p: &P<'a>) -> PResult<'a> {
             };
             stack.push_binop(p, op)?;
         }
-        start = false;
     }
     Ok(stack.finish(p))
 }
@@ -230,7 +256,7 @@ mod tests {
             .iter()
             .map(|(name, p)| (name.to_string(), *p))
             .collect();
-        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone());
+        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone()).unwrap();
         let arena = Bump::new();
         let ast = parse_term(&input, reporter.clone(), &prectable, &tokens, &arena);
         reporter.info(format!("{}", ast));
@@ -244,7 +270,7 @@ mod tests {
             .iter()
             .map(|(name, p)| (name.to_string(), *p))
             .collect();
-        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone());
+        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone()).unwrap();
         let arena = Bump::new();
         let toplevel = parse_top(&input, reporter.clone(), &prectable, &tokens, &arena);
         for topntn in toplevel.iter() {
@@ -269,8 +295,8 @@ mod tests {
             expect![[r#"
                 error[syntax]: empty term
                 --> <none>:1:1
-                1| 
-                1| 
+                1|
+                1|
                 info: !!!
             "#]],
         );

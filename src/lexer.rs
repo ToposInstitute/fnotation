@@ -9,7 +9,7 @@ declare_error!(LEX_ERROR, "lex", "an error during the lexing phase");
 
 struct Lexer<'a> {
     iter: Peekable<Chars<'a>>,
-    source: &'a str,
+    src: &'a str,
     reporter: Reporter,
     parse_config: &'a ParseConfig<'a>,
     out: Vec<Token>,
@@ -18,11 +18,20 @@ struct Lexer<'a> {
     cur: usize,
 }
 
+macro_rules! error {
+    ($m:expr, $msg:literal) => {{
+        $m.error(format!($msg));
+    }};
+    ($m:expr, $msg:literal, $($arg:expr),+) => {{
+        $m.error(format!($msg, $($arg),+));
+    }};
+}
+
 impl<'a> Lexer<'a> {
     pub fn new(source: &'a str, parse_config: &'a ParseConfig, reporter: Reporter) -> Self {
         Lexer {
             iter: source.chars().peekable(),
-            source,
+            src: source,
             reporter,
             parse_config,
             out: Vec::new(),
@@ -34,8 +43,7 @@ impl<'a> Lexer<'a> {
 
     fn error(&mut self, message: String) {
         let l = Loc::new(self.prev, self.cur);
-        self.out
-            .push(Token::new(self.preceding_whitespace, ERROR, l));
+        self.emit(ERROR);
         self.reporter.error(l, LEX_ERROR, message.into());
     }
 
@@ -65,7 +73,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn slice(&self) -> &'a str {
-        &self.source[self.prev..self.cur]
+        &self.src[self.prev..self.cur]
     }
 
     fn many<F: Fn(char) -> bool>(&mut self, f: F) {
@@ -77,18 +85,23 @@ impl<'a> Lexer<'a> {
             }
         }
     }
-}
 
-macro_rules! error {
-    ($m:expr, $msg:literal) => {{
-        $m.error(format!($msg));
-    }};
-    ($m:expr, $msg:literal, $($arg:expr),+) => {{
-        $m.error(format!($msg, $($arg),+));
-    }};
+    fn some<F: Fn(char) -> bool>(&mut self, f: F, desc: &str) {
+        if let Some(c) = self.peek() {
+            if f(c) {
+                self.many(f);
+                return;
+            }
+        }
+        error!(self, "expected a character satisfying {desc}");
+    }
 }
 
 fn word(l: &mut Lexer) {
+    l.some(|c| c.is_alphanumeric() || c == '_', "alphanumeric or '_'");
+}
+
+fn word0(l: &mut Lexer) {
     l.many(|c| c.is_alphanumeric() || c == '_');
 }
 
@@ -119,11 +132,22 @@ fn num(l: &mut Lexer) {
 
 fn string(l: &mut Lexer) {
     l.many(|c| c != '"');
-    l.advance();
-    l.emit(STRING);
+    match l.advance() {
+        Some(_) => {
+            l.emit(STRING);
+        }
+        None => {
+            error!(l, "expected closing quote for string")
+        }
+    }
 }
 
-fn run(l: &mut Lexer) {
+#[derive(Debug)]
+pub enum LexFatalError {
+    ASCIIControl,
+}
+
+fn run(l: &mut Lexer) -> Result<(), LexFatalError> {
     l.emit(BOF);
     while let Some(c) = l.advance() {
         match c {
@@ -133,7 +157,7 @@ fn run(l: &mut Lexer) {
                 continue;
             }
             _ if c.is_alphabetic() || c == '_' => {
-                word(l);
+                word0(l);
                 if l.parse_config.is_keyword(l.slice()) {
                     l.emit(KEYWORD);
                 } else if l.parse_config.is_toplevel(l.slice()) {
@@ -178,16 +202,25 @@ fn run(l: &mut Lexer) {
             '[' => l.emit(LBRACK),
             ']' => l.emit(RBRACK),
             _ => {
-                error!(l, "unexpected character");
+                if c.is_ascii_control() {
+                    error!(l, "ascii control character '{c}' not allowed");
+                    return Err(LexFatalError::ASCIIControl);
+                }
+                error!(l, "unexpected character '{c}'");
             }
         }
     }
+    Ok(())
 }
 
-pub fn lex(source: &str, parse_config: &ParseConfig, reporter: Reporter) -> Vec<Token> {
+pub fn lex(
+    source: &str,
+    parse_config: &ParseConfig,
+    reporter: Reporter,
+) -> Result<Vec<Token>, LexFatalError> {
     let mut lexer = Lexer::new(source, parse_config, reporter);
-    run(&mut lexer);
-    lexer.out
+    run(&mut lexer)?;
+    Ok(lexer.out)
 }
 
 #[cfg(test)]
@@ -206,7 +239,7 @@ mod test {
 
     fn test(input: &str, expected: Expect) {
         let reporter = Reporter::new();
-        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone());
+        let tokens = lex(&input, &DEMO_PARSECONFIG, reporter.clone()).unwrap();
         let mut out = String::new();
         for tok in tokens.iter() {
             write!(&mut out, "{} ", tok).unwrap();
@@ -220,13 +253,13 @@ mod test {
         test(
             "E",
             expect![[r#"
-                info: BOF:0-0 VAR:0-1 
+                info: BOF:0-0 VAR:0-1
             "#]],
         );
         test(
             "A",
             expect![[r#"
-                info: BOF:0-0 VAR:0-1 
+                info: BOF:0-0 VAR:0-1
             "#]],
         );
         test(
@@ -240,7 +273,7 @@ mod test {
                 --> <none>:2:1
                 2| #@error
                 2| ^^
-                info: BOF:0-0 TOPDECL:0-5 VAR:6-7 ERROR:8-10 VAR:8-15 TOPDECL:16-21 VAR:22-23 
+                info: BOF:0-0 TOPDECL:0-5 VAR:6-7 ERROR:8-10 VAR:8-15 TOPDECL:16-21 VAR:22-23
             "#]],
         );
     }

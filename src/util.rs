@@ -46,7 +46,9 @@ impl<'a> ParseConfig<'a> {
             .iter()
             .map(|(s, p)| (s.to_string(), *p))
             .collect();
-        let tokens = lex(input, &self, reporter.clone());
+        let Ok(tokens) = lex(input, &self, reporter.clone()) else {
+            return None;
+        };
         let arena = Bump::new();
         let ast = parse_term(input, reporter.clone(), &precedences, &tokens, &arena);
         if reporter.errored() {
@@ -67,7 +69,12 @@ impl<'a> ParseConfig<'a> {
             .iter()
             .map(|(s, p)| (s.to_string(), *p))
             .collect();
-        let tokens = lex(input, &self, reporter.clone());
+        let Ok(tokens) = lex(input, &self, reporter.clone()) else {
+            return None;
+        };
+        if reporter.errored() {
+            return None;
+        }
         let arena = Bump::new();
         let top = parse_top(input, reporter.clone(), &precedences, &tokens, &arena);
         if reporter.errored() {
