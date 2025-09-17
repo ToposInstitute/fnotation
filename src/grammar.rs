@@ -196,8 +196,8 @@ pub fn parse_top<'a>(
     assert!(p.at(BOF));
     p.advance();
     let mut annotations = BumpVec::new_in(arena);
-    let start = p.open();
     while !p.at(EOF) {
+        let start = p.open();
         if p.at(ANNOT) {
             let m = p.open();
             p.advance();
