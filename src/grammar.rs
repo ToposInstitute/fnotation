@@ -134,34 +134,26 @@ fn term<'a>(p: &P<'a>) -> PResult<'a> {
         return Err(error!(p, m, "{:?} does not start a term argument", p.cur()));
     }
     let first_arg = arg(p, false)?;
-    if !p.at_any(ARG_START) || p.at_any(&[OP, KEYWORD_OP]) {
-        return Ok(first_arg);
-    }
     let mut stack = TermStack::new(m, p);
     stack.push_term(p, first_arg);
-    while !p.at(EOF) {
-        if p.at_any(ARG_START) && !p.at_any(&[OP, KEYWORD_OP]) {
+    while p.at_any(ARG_START) || p.at_any(&[OP, KEYWORD_OP]) {
+        if !p.at_any(&[OP, KEYWORD_OP]) {
             stack.push_term(p, get(arg(p, false)));
-        } else {
+        } else if p.at_any(&[OP, KEYWORD_OP]) {
             let op_m = p.open();
-            let op = match p.cur() {
-                token::OP | token::KEYWORD_OP => {
-                    let name = p.slice();
-                    let expr = p.advance_close(
-                        op_m,
-                        if p.cur() == token::OP {
-                            Var(name)
-                        } else {
-                            Keyword(name)
-                        },
-                    );
-                    let Some(prec) = p.prec(name) else {
-                        return Err(error!(p, m, "could not find precedence of {}", name));
-                    };
-                    BinOp { expr, prec }
-                }
-                _ => break,
+            let name = p.slice();
+            let expr = p.advance_close(
+                op_m,
+                if p.cur() == token::OP {
+                    Var(name)
+                } else {
+                    Keyword(name)
+                },
+            );
+            let Some(prec) = p.prec(name) else {
+                return Err(error!(p, m, "could not find precedence of {}", name));
             };
+            let op = BinOp { expr, prec };
             stack.push_binop(p, op)?;
         }
     }
@@ -234,6 +226,8 @@ mod tests {
 
     use crate::{lexer::lex, ParseConfig};
 
+    use crate::test_util::AssertEqStripped;
+
     use tattle::{display::SourceInfo, Reporter};
 
     use super::{parse_term, parse_top, Prec};
@@ -262,7 +256,8 @@ mod tests {
         let arena = Bump::new();
         let ast = parse_term(&input, reporter.clone(), &prectable, &tokens, &arena);
         reporter.info(format!("{}", ast));
-        expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
+        expected
+            .assert_eq_stripped(&SourceInfo::new(None, input).extract_report_to_string(reporter));
     }
 
     fn test_top(input: &str, expected: Expect) {
@@ -281,7 +276,8 @@ mod tests {
             }
             reporter.info(format!("{} {}", topntn.name, topntn.body))
         }
-        expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
+        expected
+            .assert_eq_stripped(&SourceInfo::new(None, input).extract_report_to_string(reporter));
     }
 
     #[test]

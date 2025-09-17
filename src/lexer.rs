@@ -228,7 +228,7 @@ mod test {
     use expect_test::{expect, Expect};
     use indoc::indoc;
 
-    use crate::ParseConfig;
+    use crate::{test_util::AssertEqStripped, ParseConfig};
 
     use super::lex;
 
@@ -245,7 +245,8 @@ mod test {
             write!(&mut out, "{} ", tok).unwrap();
         }
         reporter.info(out);
-        expected.assert_eq(&SourceInfo::new(None, input).extract_report_to_string(reporter));
+        expected
+            .assert_eq_stripped(&SourceInfo::new(None, input).extract_report_to_string(reporter));
     }
 
     #[test]
@@ -273,7 +274,7 @@ mod test {
                 --> <none>:2:1
                 2| #@error
                 2| ^^
-                info: BOF:0-0 TOPDECL:0-5 VAR:6-7 ERROR:8-10 VAR:8-15 TOPDECL:16-21 VAR:22-23
+                info: BOF:0-0 TOPDECL:0-5 VAR:6-7 ERROR:8-10 VAR:10-15 TOPDECL:16-21 VAR:22-23
             "#]],
         );
     }
