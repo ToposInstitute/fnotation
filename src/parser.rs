@@ -27,7 +27,7 @@ macro_rules! error_at {
 
 declare_error!(SYNTAX_ERROR, "syntax", "an error during the parsing phase");
 
-type Marker = usize;
+pub type Marker = usize;
 
 pub struct Parser<'a> {
     src: &'a str,

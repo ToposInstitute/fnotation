@@ -168,7 +168,7 @@ fn term<'a>(p: &P<'a>) -> PResult<'a> {
     Ok(stack.finish(p))
 }
 
-pub fn decl<'a>(annotations: &'a [&'a FNtn<'a>], p: &P<'a>) -> Option<FNtnTop<'a>> {
+pub fn decl<'a>(start: Marker, annotations: &'a [&'a FNtn<'a>], p: &P<'a>) -> Option<FNtnTop<'a>> {
     let m = p.open();
     let s = p.slice();
     if let Err(_) = p.eat(m, TOPDECL) {
@@ -176,7 +176,7 @@ pub fn decl<'a>(annotations: &'a [&'a FNtn<'a>], p: &P<'a>) -> Option<FNtnTop<'a
         return None;
     };
     let t = get(term(p));
-    Some(FNtnTop::new(annotations, s, p.loc_from(m), t))
+    Some(FNtnTop::new(annotations, s, p.loc_from(start), t))
 }
 
 pub fn parse_term<'a>(
@@ -204,6 +204,7 @@ pub fn parse_top<'a>(
     assert!(p.at(BOF));
     p.advance();
     let mut annotations = BumpVec::new_in(arena);
+    let start = p.open();
     while !p.at(EOF) {
         if p.at(ANNOT) {
             let m = p.open();
@@ -213,6 +214,7 @@ pub fn parse_top<'a>(
             annotations.push(n);
         }
         if let Some(t) = decl(
+            start,
             std::mem::replace(&mut annotations, BumpVec::new_in(arena)).into_bump_slice(),
             &p,
         ) {
