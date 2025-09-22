@@ -1,6 +1,6 @@
 # F-notation
 
-[documentation](https://forest.topos.site/public/foreign-topos-ocl-00CE.xml)
+[documentation](https://forest.topos.site/public/ocl-00CE)
 
 [example of use](https://github.com/ToposInstitute/emtt/tree/main/examples)
 
