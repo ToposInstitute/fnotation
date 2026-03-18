@@ -142,6 +142,16 @@ fn string(l: &mut Lexer) {
     }
 }
 
+fn quoted_var(l: &mut Lexer) {
+    l.skip();
+    l.many(|c| c != '`');
+    l.emit(VAR);
+    match l.advance() {
+        Some(_) => l.skip(),
+        None => error!(l, "expected closing backtick for variable name"),
+    }
+}
+
 #[derive(Debug)]
 pub enum LexFatalError {
     ASCIIControl,
@@ -184,10 +194,7 @@ fn run(l: &mut Lexer) -> Result<(), LexFatalError> {
                     }
                 }
             }
-            '`' => {
-                l.skip();
-                op(l, true)
-            }
+            '`' => quoted_var(l),
             '@' => keyword(l, PRIM),
             '%' => keyword(l, SPECIAL),
             '.' => keyword(l, FIELD),
@@ -252,12 +259,6 @@ mod test {
     #[test]
     fn lexer_tests() {
         test(
-            "E",
-            expect![[r#"
-                info: BOF:0-0 VAR:0-1
-            "#]],
-        );
-        test(
             "A",
             expect![[r#"
                 info: BOF:0-0 VAR:0-1
@@ -275,6 +276,12 @@ mod test {
                 2| #@error
                 2| ^^
                 info: BOF:0-0 TOPDECL:0-5 VAR:6-7 ERROR:8-10 VAR:10-15 TOPDECL:16-21 VAR:22-23
+            "#]],
+        );
+        test(
+            "`hello world`",
+            expect![[r#"
+                info: BOF:0-0 VAR:1-12
             "#]],
         );
     }

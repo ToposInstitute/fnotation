@@ -380,6 +380,12 @@ mod tests {
                 info: annot: annotation
                 info: def (g x) = (f (f x))
             "#]],
-        )
+        );
+        test(
+            "f `hello world`",
+            expect![[r#"
+                info: f `hello world`
+            "#]],
+        );
     }
 }
