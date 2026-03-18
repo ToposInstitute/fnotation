@@ -100,7 +100,7 @@ use pretty::RcDoc;
 
 /// Can the variable name be displayed without quotes?
 ///
-/// The condition is that the name starts with an alphebetic character or
+/// The condition is that the name starts with an alphabetic character or
 /// underscore and contains only alphanumeric characters and underscores.
 fn can_unquote_var_name(s: &str) -> bool {
     let mut chars = s.chars();
