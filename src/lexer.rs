@@ -133,12 +133,16 @@ fn num(l: &mut Lexer) {
 fn string(l: &mut Lexer) {
     l.many(|c| c != '"');
     match l.advance() {
-        Some(_) => {
-            l.emit(STRING);
-        }
-        None => {
-            error!(l, "expected closing quote for string")
-        }
+        Some(_) => l.emit(STRING),
+        None => error!(l, "expected closing quote for string"),
+    }
+}
+
+fn quoted_var(l: &mut Lexer) {
+    l.many(|c| c != '`');
+    match l.advance() {
+        Some(_) => l.emit(QUOTED_VAR),
+        None => error!(l, "expected closing backtick for variable name"),
     }
 }
 
@@ -184,15 +188,12 @@ fn run(l: &mut Lexer) -> Result<(), LexFatalError> {
                     }
                 }
             }
-            '`' => {
-                l.skip();
-                op(l, true)
-            }
             '@' => keyword(l, PRIM),
             '%' => keyword(l, SPECIAL),
             '.' => keyword(l, FIELD),
             '\'' => keyword(l, TAG),
             '"' => string(l),
+            '`' => quoted_var(l),
             ';' => l.emit(SEMICOLON),
             ',' => l.emit(COMMA),
             '{' => l.emit(LCURLY),
@@ -252,12 +253,6 @@ mod test {
     #[test]
     fn lexer_tests() {
         test(
-            "E",
-            expect![[r#"
-                info: BOF:0-0 VAR:0-1
-            "#]],
-        );
-        test(
             "A",
             expect![[r#"
                 info: BOF:0-0 VAR:0-1
@@ -275,6 +270,12 @@ mod test {
                 2| #@error
                 2| ^^
                 info: BOF:0-0 TOPDECL:0-5 VAR:6-7 ERROR:8-10 VAR:10-15 TOPDECL:16-21 VAR:22-23
+            "#]],
+        );
+        test(
+            "`hello world`",
+            expect![[r#"
+                info: BOF:0-0 QUOTED_VAR:0-13
             "#]],
         );
     }

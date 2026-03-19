@@ -10,6 +10,7 @@ pub enum Kind {
     ANNOT,
 
     VAR,
+    QUOTED_VAR,
     KEYWORD,
     TOPDECL,
     PRIM,

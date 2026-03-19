@@ -35,7 +35,7 @@ pub enum FNtn0<'a> {
     /// `f x => App1(f, x)`
     App1(&'a FNtn<'a>, &'a FNtn<'a>),
 
-    /// `x + y => App2(f, x, y)
+    /// `x + y => App2(f, x, y)`
     App2(&'a FNtn<'a>, &'a FNtn<'a>, &'a FNtn<'a>),
 
     /// `a => Var("a")`
@@ -98,6 +98,16 @@ pub use FNtn0::*;
 
 use pretty::RcDoc;
 
+/// Can the variable name be displayed without quotes?
+///
+/// The condition is that the name starts with an alphabetic character or
+/// underscore and contains only alphanumeric characters and underscores.
+fn can_unquote_var_name(s: &str) -> bool {
+    let mut chars = s.chars();
+    chars.next().is_some_and(|c| c.is_alphabetic() || c == '_')
+        && chars.all(|c| c.is_alphanumeric() || c == '_')
+}
+
 fn bexpr<'a>(args: &'a [&'a FNtn<'a>]) -> RcDoc<'a> {
     RcDoc::text("[")
         .append(
@@ -152,7 +162,10 @@ impl<'a> FNtn<'a> {
             App2(f, l, r) => l
                 .parens()
                 .append(RcDoc::line())
-                .append(f.to_doc())
+                .append(match f.ast0() {
+                    Var(s) => RcDoc::text(s.to_string()),
+                    _ => f.to_doc(),
+                })
                 .append(RcDoc::line())
                 .append(r.parens())
                 .group(),
@@ -164,7 +177,13 @@ impl<'a> FNtn<'a> {
             Int(i) => RcDoc::text(format!("{}", i)),
             Float(x) => RcDoc::text(format!("{}", x)),
             Str(s) => RcDoc::text(format!("\"{}\"", s)),
-            Var(s) => RcDoc::text(s.to_string()),
+            Var(s) => {
+                if can_unquote_var_name(s) {
+                    RcDoc::text(s.to_string())
+                } else {
+                    RcDoc::text(format!("`{}`", s))
+                }
+            }
             Keyword(s) => RcDoc::text(s.to_string()),
             Block(stmts, res) => RcDoc::text("{")
                 .append(RcDoc::line())
